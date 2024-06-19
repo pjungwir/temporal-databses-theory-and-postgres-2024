@@ -1,11 +1,11 @@
 # Temporal Databases: Theory and Postgres
 
-These are the slides and my notes for a talk about temporal databases given at pdxpug 21 February 2019 then again at PGCon 2019 in Ottawa on 31 May 2019. It is built on [reveal.js](https://github.com/hakimel/reveal.js/).
+These are the slides and my notes for a talk about temporal databases given at pdxpug 20 June 2024.
+It follows a talk I gave there and at PGCon back in 2019, but with lots of updates.
+It is built on [reveal.js](https://github.com/hakimel/reveal.js/).
 
 You also can get [all the slides as a PDF](slides.pdf),
 or [read the slides' Markdown with speaker notes](slides.md).
-
-You can also find [video of my talk](https://illuminatedcomputing.com/pages/pgcon2019/) on my website.
 
 ## Development
 
