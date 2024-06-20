@@ -29,3 +29,13 @@
   grid-area: 1/1;
   margin: auto;
 }
+
+.attention {
+  color: red !important;
+}
+.attention .hljs-keyword {
+  color: red !important;
+}
+.attention .hljs-literal {
+  color: red !important;
+}

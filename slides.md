@@ -565,6 +565,8 @@ Note:
 
 # Temporal Foreign Keys
 
+![It's dangerous to go alone](img/link.png)<!-- .element: style="width:100px" -->
+
 ```
 ALTER TABLE variants
 ADD CONSTRAINT variants_product_id_fk
@@ -849,7 +851,7 @@ Note:
 <pre>
 <code data-noescape>CREATE TABLE products (
   id       integer,
-  <span style="color:red">valid_at tstzrange</span>,
+  <span class="attention">valid_at tstzrange</span>,
 
   name     text,
   price    decimal(10,2),
@@ -868,22 +870,21 @@ Note:
 # PERIOD
 <!-- .slide: data-transition="none slide" -->
 
-```sql
-CREATE TABLE products (
+<pre>
+<code data-noescape>CREATE TABLE products (
   id         integer,
-  valid_from timestamptz NOT NULL,
-  valid_til  timestamptz NOT NULL,
+  <span class="attention">valid_from timestamptz NOT NULL</span>,
+  <span class="attention">valid_til  timestamptz NOT NULL</span>,
 
   name       text,
   price      decimal(10,2),
 
-  PERIOD FOR valid_at
-    (valid_from, valid_til),
+  <span class="attention">PERIOD FOR valid_at
+    (valid_from, valid_til)</span>,
   CONSTRAINT pk_products
     PRIMARY KEY
     (id, valid_at WITHOUT OVERLAPS)
-);
-```
+);</code></pre>
 
 Note:
 
@@ -1065,16 +1066,16 @@ Note:
 
 
 # Semijoins
+<!-- .slide: data-transition="slide none" -->
 
-```
-SELECT  a.id, b.id, j.valid_at
+<pre>
+<code data-noescape>SELECT  a.id, a.valid_at
 FROM    a
-JOIN    b
-ON      a.id = b.id
-AND     a.valid_at && b.valid_at
-JOIN LATERAL temporal_semijoin(a.valid_at, b.valid_at) AS j(valid_at)
-ON      true
-```
+WHERE   EXISTS (
+  SELECT  1
+  FROM    b
+  WHERE   a.id = b.id
+  AND     a.valid_at && b.valid_at);</code></pre>
 
 Note:
 
@@ -1083,34 +1084,236 @@ Note:
   - He had some performance concerns about the Bohlen/Dignös/Gamper approach.
     - If you have to run `ALIGN` on the whole table, before applying join predicates, it's going to be slow.
     - He'd worked out some ways to avoid that, but hadn't put it into SQL yet.
-    - So the next day in the shower I was thinking about implementing temporal semijoin in SQL, and I came up with this.
-		- `temporal_semijoin` is a set-returning function that just intersects the two rows.
-        - Maybe it doesn't even need to be a SRF,
-          if you just filter out the empties.
+- The hardest part about semijoins is getting the resulting range.
+- This is wrong! (slide)
 
 
 
-# Antijoins
+# Semijoins
+<!-- .slide: data-transition="none slide" -->
 
-```
-SELECT  a.id, j.id, COALESCE(j.valid_at, a.valid_at) AS valid_at
+<pre>
+<code data-noescape>SELECT  a.id, <span class="attention">a.valid_at</span>
 FROM    a
-LEFT JOIN LATERAL (
-  SELECT  b.id, UNNEST(multirange(a.valid_at) - range_agg(b.valid_at)) AS valid_at
+WHERE   EXISTS (
+  SELECT  1
+  FROM    b
+  WHERE   a.id = b.id
+  AND     a.valid_at && b.valid_at);</code></pre>
+
+Note:
+
+- You don't want a.valid_at, because you only want the span that was also found in b.
+- You don't want b.valid_at.
+- You want the intersection.
+- But how do you get that out of the NOT EXISTS?
+  - You can't refer to b outside.
+
+
+
+# Semijoins
+<!-- .slide: data-transition="slide none" -->
+
+<pre>
+<code data-noescape>SELECT  a.id, j.id, j.valid_at
+FROM    a
+JOIN LATERAL (
+  SELECT  b.id,
+          UNNEST(
+            multirange(a.valid_at) *
+            range_agg(b.valid_at)
+          ) AS valid_at
   FROM    b
   WHERE   a.id = b.id
   AND     a.valid_at && b.valid_at
   GROUP BY b.id
-) AS j ON true;
-```
+) AS j ON true;</code></pre>
+
+Note:
+
+- Here is some SQL I wrote to implement Boris's approach.
+  - You have to aggregate all the matching ranges on the righthand table first, (slide)
+
+
+
+# Semijoins
+<!-- .slide: data-transition="none none" -->
+
+<pre>
+<code data-noescape>SELECT  a.id, j.id, j.valid_at
+FROM    a
+JOIN LATERAL (
+  SELECT  b.id,
+          UNNEST(
+            multirange(a.valid_at) *
+            <span class="attention">range_agg(b.valid_at)</span>
+          ) AS valid_at
+  FROM    b
+  WHERE   a.id = b.id
+  AND     a.valid_at && b.valid_at
+  GROUP BY b.id
+) AS j ON true;</code></pre>
+
+Note:
+
+- then intersect it with the lefthand record. (slide)
+
+
+
+# Semijoins
+<!-- .slide: data-transition="none slide" -->
+
+<pre>
+<code data-noescape>SELECT  a.id, j.id, j.valid_at
+FROM    a
+JOIN LATERAL (
+  SELECT  b.id,
+          UNNEST(
+            <span class="attention">multirange(a.valid_at) *
+            range_agg(b.valid_at)</span>
+          ) AS valid_at
+  FROM    b
+  WHERE   a.id = b.id
+  AND     a.valid_at && b.valid_at
+  GROUP BY b.id
+) AS j ON true;</code></pre>
+
+Note:
+
+- This would be a lot harder without multiranges.
+
+
+
+# Antijoins
+<!-- .slide: data-transition="slide none" -->
+
+<pre>
+<code data-noescape style="min-height:500px">SELECT  a.id, j.id, 
+        UNNEST(
+          CASE WHEN j.valid_at IS NULL
+               THEN multirange(a.valid_at)
+               ELSE multirange(a.valid_at) - j.valid_at END
+        ) AS valid_at
+FROM    a 
+LEFT JOIN LATERAL (
+  SELECT  b.id, range_agg(b.valid_at) AS valid_at
+  FROM    b
+  WHERE   a.id = b.id
+  AND     a.valid_at && b.valid_at
+  GROUP BY b.id
+) AS j ON true
+WHERE   NOT isempty(a.valid_at);</code></pre>
 
 Note:
 
 - Here are antijoins too.
-- They aren't as nice.
-  - You have to look at the every right-hand-side match
-    before you can decided which left-hand-side values to keep.
-  - But `range_agg` is perfect for that.
+- It's a similar pattern:
+  - First combine the righthand ranges. (slide)
+
+
+
+# Antijoins
+<!-- .slide: data-transition="none none" -->
+
+<pre>
+<code data-noescape style="min-height:500px">SELECT  a.id, j.id, 
+        UNNEST(
+          CASE WHEN j.valid_at IS NULL
+               THEN multirange(a.valid_at)
+               ELSE multirange(a.valid_at) - j.valid_at END
+        ) AS valid_at
+FROM    a 
+LEFT JOIN LATERAL (
+  SELECT  b.id, <span class="attention">range_agg(b.valid_at)</span> AS valid_at
+  FROM    b
+  WHERE   a.id = b.id
+  AND     a.valid_at && b.valid_at
+  GROUP BY b.id
+) AS j ON true
+WHERE   NOT isempty(a.valid_at);</code></pre>
+
+Note:
+
+- Instead of an inner join we have an outer join. (slide)
+
+
+
+# Antijoins
+<!-- .slide: data-transition="none none" -->
+
+<pre>
+<code data-noescape style="min-height:500px">SELECT  a.id, j.id, 
+        UNNEST(
+          CASE WHEN j.valid_at IS NULL
+               THEN multirange(a.valid_at)
+               ELSE multirange(a.valid_at) - j.valid_at END
+        ) AS valid_at
+FROM    a 
+<span class="attention">LEFT JOIN LATERAL</span> (
+  SELECT  b.id, range_agg(b.valid_at) AS valid_at
+  FROM    b
+  WHERE   a.id = b.id
+  AND     a.valid_at && b.valid_at
+  GROUP BY b.id
+) AS j ON true
+WHERE   NOT isempty(a.valid_at);</code></pre>
+
+Note:
+
+- Remember the point is to find records with no match.
+- Then instead of intersect we subtract. (slide)
+
+
+
+# Antijoins
+<!-- .slide: data-transition="none none" -->
+
+<pre>
+<code data-noescape style="min-height:500px">SELECT  a.id, j.id, 
+        UNNEST(
+          CASE WHEN j.valid_at IS NULL
+               THEN multirange(a.valid_at)
+               ELSE <span class="attention">multirange(a.valid_at) - j.valid_at</span> END
+        ) AS valid_at
+FROM    a 
+LEFT JOIN LATERAL (
+  SELECT  b.id, range_agg(b.valid_at) AS valid_at
+  FROM    b
+  WHERE   a.id = b.id
+  AND     a.valid_at && b.valid_at
+  GROUP BY b.id
+) AS j ON true
+WHERE   NOT isempty(a.valid_at);</code></pre>
+
+Note:
+
+- Since subtract can generate splits, we UNNEST. (slide)
+
+
+
+# Antijoins
+<!-- .slide: data-transition="none slide" -->
+
+<pre>
+<code data-noescape style="min-height:500px">SELECT  a.id, j.id, 
+        <span class="attention">UNNEST</span>(
+          CASE WHEN j.valid_at IS NULL
+               THEN multirange(a.valid_at)
+               ELSE multirange(a.valid_at) - j.valid_at END
+        ) AS valid_at
+FROM    a 
+LEFT JOIN LATERAL (
+  SELECT  b.id, range_agg(b.valid_at) AS valid_at
+  FROM    b
+  WHERE   a.id = b.id
+  AND     a.valid_at && b.valid_at
+  GROUP BY b.id
+) AS j ON true
+WHERE   NOT isempty(a.valid_at);</code></pre>
+
+Note:
+
+- There is some extra stuff to avoid empty ranges.
 - These are both on github and linked in my references at the end.
 
 
@@ -1186,6 +1389,10 @@ Note:
 
 
 # More
+
+- History UX
+- CRUD: REST, GraphQL
+- ORM
 
 Note:
 
