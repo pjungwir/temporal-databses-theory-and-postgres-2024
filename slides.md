@@ -85,7 +85,7 @@ Note:
   - ... at least in the fact table in the center.
     - Facts capture history because they are almost always dated.
   - The dimensions don't necessarily have history.
-    - product changes
+    - products change
     - stores come and ago and change
     - Kimball calls these "slowly-changing dimensions" (SCDs).
 
@@ -146,9 +146,9 @@ Note:
 Note:
 
 - Fortunately we've got 30+ years of research, we should use it!
-- This is the first book about temporal databases, but Richard Snodgrass.
-  - Well there is a collection of academic papers he edited that's even earlier.
-- From the late 90s
+- This is the first book about temporal databases, by Richard Snodgrass.
+  - Well I recently discovered collection of academic papers he edited that's even earlier. I haven't read that one yet.
+- Published in 1999, though my copy says copyright 2000.
 - It shows how to do everything.
   - valid-time, system-time, bitemporal.
   - snapshot query vs sequenced vs non-sequenced
@@ -159,7 +159,7 @@ Note:
     - Also Oracle, DB2, Access, and MS SQL Server.
 
 - Snodgrass led a standardization effort back in the 90s that didn't quite succeed.
-  - Some day SQL:2011 is based on that, but not completely.
+  - Some say SQL:2011 is based on that, but not completely.
 
 
 
@@ -207,7 +207,7 @@ TimescaleDB          | `periods`, `pg_bitemporal`
 Note:
 
 - To start with, a temporal database is not the same as a time-series database.
-- Nowadays time-series is all the rage, with web analytics, advertising, IoT sensor data.
+- Nowadays time-series is all the rage, with web analytics, advertising, IoT sensor data, APM metrics.
 - Temporal is something else.
 - In time-series every record has a single time stamp; in temporal every record has two: start & end.
 - In time-series you record events; in temporal, things (different versions throughout the thing's lifetime)
@@ -253,11 +253,12 @@ Note:
   - Your database just sort of maintains it for you in the background.
 - Then there is application time, which is when the thing changed out in the world.
   - You the application developer have to maintain this history yourself.
+    - Maybe you expose this to your users too.
   - This is a lot trickier.
   - System time doesn't really require temporal containts, but this does.
   - You need temporal updates and deletes.
   - You really want some database help here.
-  - Not many tools support this. There are a couple Postgres extensions nowadays.
+  - Not many tools support this. Postgres has the two I mentioned.
 
 - If you combine both in one table, that's call bi-temporal.
 
@@ -278,7 +279,7 @@ Note:
 
 - Btw, no one agrees on terminology.
   - Johnston's two books don't even agree with each other.
-- There is actually a document called "The Consensus Glossary of Temporal Database Concepts" . . .from 1998.
+- There is actually a document called "The Consensus Glossary of Temporal Database Concepts" . . . from 1998.
 
 
 
@@ -414,7 +415,6 @@ Note:
 - Exclusion constraints are "generalized uniqueness constraints".
 - There must be no other rows where all the operators evaluate to true when compared to this row.
   - If it has the same id *and* an overlapping valid time, then it's forbidden.
-- (show the next slide)
 
 
 
@@ -558,6 +558,9 @@ Note:
 
 Note:
 
+- So if you didn't catch it,
+  - that was a NOT EXISTS inside an EXISTS inside a NOT EXISTS
+  - and there was a triple OR clause
 - So obviously you don't really want to do this unless you have some help:
   - an extension or better yet native support from your database.
 
@@ -904,8 +907,6 @@ Note:
       you can't put it in a VIEW.
     - You have a few special-case predicates for your WHERE clause,
       which no RDBMS actually supported last I checked.
-    - Unfortunately most of the criticism has been by C.J. Date,
-      and I have a feeling most people stopped listening to him two or three decades ago.
 
 - In my patches, everything is built on top of ranges,
   and the syntax allows you to give a range wherever a PERIOD is allowed.
@@ -939,8 +940,9 @@ Note:
 - Then you get automatic system-time history.
 - There are no special DML commands, because the point is you don't manage this dimension.
 - There are no special constraints, because Postgres will never mess up.
-- Most likely we'll store the historical records in a separate table anyway.
-  - Other vendors do it that way, and even let you partition the history table by age.
+- Logically speaking the historical records are in a separate table.
+  - Physically speaking they probably are too.
+    - Other vendors do it that way, and even let you partition the history table by age.
 
 
 
@@ -997,7 +999,8 @@ Note:
 
 Note:
 
-- But outer joins are not possible in SQL:2011.
+- But outer joins are a lot harder,
+  - and there is nothing in SQL:2011 to help us here.
 - Here you have two tables from a hospitality system.
   - I'm more or less stolen this example from some researchers in Switzerland & Italy:
     - Anton Dignös
@@ -1081,7 +1084,7 @@ Note:
 
 - There is nothing for temporal semijoins either.
 - I was just talking with Hettie and her husband Boris this week.
-  - He had some performance concerns about the Bohlen/Dignös/Gamper approach.
+  - He had some performance concerns about the Böhlen/Dignös/Gamper approach.
     - If you have to run `ALIGN` on the whole table, before applying join predicates, it's going to be slow.
     - He'd worked out some ways to avoid that, but hadn't put it into SQL yet.
 - The hardest part about semijoins is getting the resulting range.
@@ -1107,7 +1110,8 @@ Note:
 - You don't want b.valid_at.
 - You want the intersection.
 - But how do you get that out of the NOT EXISTS?
-  - You can't refer to b outside.
+  - b is not in scope in the outer query.
+  - The result range you want has no name.
 
 
 
@@ -1324,7 +1328,7 @@ TODO
 
 Note:
 
-- Boris has done some work with me on this. I don't think it's published yet.
+- Boris has done some work he shared with me on this. I don't think it's published yet.
 
 
 
