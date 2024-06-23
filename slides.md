@@ -1088,12 +1088,10 @@ WHERE   EXISTS (
 Note:
 
 - There is nothing for temporal semijoins either.
-- I was just talking with Hettie and her husband Boris this week.
-  - He had some performance concerns about the Böhlen/Dignös/Gamper approach.
-    - If you have to run `ALIGN` on the whole table, before applying join predicates, it's going to be slow.
-    - He'd worked out some ways to avoid that, but hadn't put it into SQL yet.
-- The hardest part about semijoins is getting the resulting range.
-- This is wrong! (slide)
+- This is how we do a semijoin in SQL, right?
+  - We use EXISTS plus a correlated subquery.
+  - For temporal we look for overlaps.
+- But this is wrong! (slide)
 
 
 
@@ -1112,11 +1110,20 @@ WHERE   EXISTS (
 Note:
 
 - You don't want a.valid_at, because you only want the span that was also found in b.
-- You don't want b.valid_at.
+    - Think about Date's model again.
+- Of course you don't want b.valid_at.
 - You want the intersection.
 - But how do you get that out of the NOT EXISTS?
   - b is not in scope in the outer query.
   - The result range you want has no name.
+- With Böhlen/Dignös/Gamper, there is new sytax, so you can get it.
+- But I was talking with Hettie and her husband Boris about this,
+  and he had some performance concerns.
+    - If you have to run `ALIGN` on the whole table, before applying join predicates, it's going to be slow.
+    - He'd worked out some ways to avoid that, but hadn't put it into SQL yet.
+    - Ideally you'd just teach the Postgres semijoin executor node to do a temporal thing.
+      The planner would feed it in aggregated ranges, and it would emit a range intersected with that.
+    - But in *SQL*, how does the user access that intersected range? What is its name?
 
 
 
@@ -1124,23 +1131,20 @@ Note:
 <!-- .slide: data-transition="slide none" -->
 
 <pre>
-<code data-noescape>SELECT  a.id, j.id, j.valid_at
+<code data-noescape>SELECT  a.id,
+        UNNEST(multirange(a.valid_at) * j.valid_at) AS valid_at
 FROM    a
-JOIN LATERAL (
-  SELECT  b.id,
-          UNNEST(
-            multirange(a.valid_at) *
-            range_agg(b.valid_at)
-          ) AS valid_at
+JOIN (
+  SELECT  b.id, range_agg(b.valid_at) AS valid_at
   FROM    b
-  WHERE   a.id = b.id
-  AND     a.valid_at && b.valid_at
   GROUP BY b.id
-) AS j ON true;</code></pre>
+) AS j
+ON a.id = j.id AND a.valid_at && j.valid_at;</code></pre>
 
 Note:
 
 - Here is some SQL I wrote to implement Boris's approach.
+  - This makes the new range accessable as `j.valid`.
   - You have to aggregate all the matching ranges on the righthand table first, (slide)
 
 
@@ -1149,19 +1153,15 @@ Note:
 <!-- .slide: data-transition="none none" -->
 
 <pre>
-<code data-noescape>SELECT  a.id, j.id, j.valid_at
+<code data-noescape>SELECT  a.id,
+        UNNEST(multirange(a.valid_at) * j.valid_at) AS valid_at
 FROM    a
-JOIN LATERAL (
-  SELECT  b.id,
-          UNNEST(
-            multirange(a.valid_at) *
-            <span class="attention">range_agg(b.valid_at)</span>
-          ) AS valid_at
+JOIN (
+  SELECT  b.id, <span class="attention">range_agg(b.valid_at)</span> AS valid_at
   FROM    b
-  WHERE   a.id = b.id
-  AND     a.valid_at && b.valid_at
   GROUP BY b.id
-) AS j ON true;</code></pre>
+) AS j
+ON a.id = j.id AND a.valid_at && j.valid_at;</code></pre>
 
 Note:
 
@@ -1173,19 +1173,15 @@ Note:
 <!-- .slide: data-transition="none slide" -->
 
 <pre>
-<code data-noescape>SELECT  a.id, j.id, j.valid_at
+<code data-noescape>SELECT  a.id,
+        UNNEST(<span class="attention">multirange(a.valid_at) * j.valid_at</span>) AS valid_at
 FROM    a
-JOIN LATERAL (
-  SELECT  b.id,
-          UNNEST(
-            <span class="attention">multirange(a.valid_at) *
-            range_agg(b.valid_at)</span>
-          ) AS valid_at
+JOIN (
+  SELECT  b.id, range_agg(b.valid_at) AS valid_at
   FROM    b
-  WHERE   a.id = b.id
-  AND     a.valid_at && b.valid_at
   GROUP BY b.id
-) AS j ON true;</code></pre>
+) AS j
+ON a.id = j.id AND a.valid_at && j.valid_at;</code></pre>
 
 Note:
 
@@ -1197,20 +1193,19 @@ Note:
 <!-- .slide: data-transition="slide none" -->
 
 <pre>
-<code data-noescape style="min-height:500px">SELECT  a.id, j.id, 
+<code data-noescape style="min-height:500px">SELECT  a.id, 
         UNNEST(
           CASE WHEN j.valid_at IS NULL
                THEN multirange(a.valid_at)
                ELSE multirange(a.valid_at) - j.valid_at END
         ) AS valid_at
 FROM    a 
-LEFT JOIN LATERAL (
+LEFT JOIN (
   SELECT  b.id, range_agg(b.valid_at) AS valid_at
   FROM    b
-  WHERE   a.id = b.id
-  AND     a.valid_at && b.valid_at
   GROUP BY b.id
-) AS j ON true
+) AS j
+ON a.id = j.id AND a.valid_at && j.valid_at
 WHERE   NOT isempty(a.valid_at);</code></pre>
 
 Note:
@@ -1225,20 +1220,19 @@ Note:
 <!-- .slide: data-transition="none none" -->
 
 <pre>
-<code data-noescape style="min-height:500px">SELECT  a.id, j.id, 
+<code data-noescape style="min-height:500px">SELECT  a.id, 
         UNNEST(
           CASE WHEN j.valid_at IS NULL
                THEN multirange(a.valid_at)
                ELSE multirange(a.valid_at) - j.valid_at END
         ) AS valid_at
 FROM    a 
-LEFT JOIN LATERAL (
+LEFT JOIN (
   SELECT  b.id, <span class="attention">range_agg(b.valid_at)</span> AS valid_at
   FROM    b
-  WHERE   a.id = b.id
-  AND     a.valid_at && b.valid_at
   GROUP BY b.id
-) AS j ON true
+) AS j
+ON a.id = j.id AND a.valid_at && j.valid_at
 WHERE   NOT isempty(a.valid_at);</code></pre>
 
 Note:
@@ -1251,20 +1245,19 @@ Note:
 <!-- .slide: data-transition="none none" -->
 
 <pre>
-<code data-noescape style="min-height:500px">SELECT  a.id, j.id, 
+<code data-noescape style="min-height:500px">SELECT  a.id, 
         UNNEST(
           CASE WHEN j.valid_at IS NULL
                THEN multirange(a.valid_at)
                ELSE multirange(a.valid_at) - j.valid_at END
         ) AS valid_at
 FROM    a 
-<span class="attention">LEFT JOIN LATERAL</span> (
+<span class="attention">LEFT JOIN</span> (
   SELECT  b.id, range_agg(b.valid_at) AS valid_at
   FROM    b
-  WHERE   a.id = b.id
-  AND     a.valid_at && b.valid_at
   GROUP BY b.id
-) AS j ON true
+) AS j
+ON a.id = j.id AND a.valid_at && j.valid_at
 WHERE   NOT isempty(a.valid_at);</code></pre>
 
 Note:
@@ -1278,25 +1271,24 @@ Note:
 <!-- .slide: data-transition="none none" -->
 
 <pre>
-<code data-noescape style="min-height:500px">SELECT  a.id, j.id, 
+<code data-noescape style="min-height:500px">SELECT  a.id, 
         UNNEST(
           CASE WHEN j.valid_at IS NULL
                THEN multirange(a.valid_at)
                ELSE <span class="attention">multirange(a.valid_at) - j.valid_at</span> END
         ) AS valid_at
 FROM    a 
-LEFT JOIN LATERAL (
+LEFT JOIN (
   SELECT  b.id, range_agg(b.valid_at) AS valid_at
   FROM    b
-  WHERE   a.id = b.id
-  AND     a.valid_at && b.valid_at
   GROUP BY b.id
-) AS j ON true
+) AS j
+ON a.id = j.id AND a.valid_at && j.valid_at
 WHERE   NOT isempty(a.valid_at);</code></pre>
 
 Note:
 
-- Since subtract can generate splits, we UNNEST. (slide)
+- And to get back to ranges, UNNEST. (slide)
 
 
 
@@ -1304,20 +1296,19 @@ Note:
 <!-- .slide: data-transition="none slide" -->
 
 <pre>
-<code data-noescape style="min-height:500px">SELECT  a.id, j.id, 
+<code data-noescape style="min-height:500px">SELECT  a.id, 
         <span class="attention">UNNEST</span>(
           CASE WHEN j.valid_at IS NULL
                THEN multirange(a.valid_at)
                ELSE multirange(a.valid_at) - j.valid_at END
-        ) AS valid_at
+         ) AS valid_at
 FROM    a 
-LEFT JOIN LATERAL (
+LEFT JOIN (
   SELECT  b.id, range_agg(b.valid_at) AS valid_at
   FROM    b
-  WHERE   a.id = b.id
-  AND     a.valid_at && b.valid_at
   GROUP BY b.id
-) AS j ON true
+) AS j
+ON a.id = j.id AND a.valid_at && j.valid_at
 WHERE   NOT isempty(a.valid_at);</code></pre>
 
 Note:
