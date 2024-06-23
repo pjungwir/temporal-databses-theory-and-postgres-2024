@@ -29,6 +29,7 @@ Note:
 ## Lost Information
 
 <!-- .slide: style="font-size: 80%" -->
+- finance: market data <!-- .element: class="fragment" -->
 - questionnaires: changing questions, options <!-- .element: class="fragment" -->
 - e-commerce: product price, other attributes <!-- .element: class="fragment" -->
 - real estate: house renovations <!-- .element: class="fragment" -->
@@ -42,6 +43,10 @@ Note:
   but I don't think a single one could re-generate a year-old report
   and get the same answers as before.
   - If you're talking about financial documents, that seems like a problem.
+  - Finance seems to be a big one.
+    - Hettie Dombrovskaya's has a Postgres extension originally built for this purpose.
+    - XTDB (which is not Postgres) is built by finance people.
+    - Lots of other examples.
   - One company built surveys to measure the effectiveness of social services.
     These were mostly multiple-choice questions, like "What is your ethnicity?"
 
