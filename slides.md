@@ -2,8 +2,8 @@
 ## Theory and Postgres 2024
 
 Paul A. Jungwirth<br/>
-20 June 2024<br/>
-pdxpug
+15 October 2024<br/>
+PostgreSQL Chicago
 
 Note:
 
@@ -1335,56 +1335,6 @@ TODO
 Note:
 
 - We need support here too.
-
-
-
-# Postgres v17 Revert
-
-- Primary keys
-- Foreign keys
-
-Note:
-
-- So what was in Postgres 17? Only PKs and FKs.
-- I also have patches for the rest of SQL:2011, but they weren't ready for merging yet.
-    - Temporal update/delete, PERIODs.
-    - Maybe we can get *everything* into 18.
-
-
-
-# Postgres v17 Revert
-
-```
-EXCLUDE (id WITH =, valid_at WITH &&)
-...
-INSERT INTO products (id, valid_at) VALUES (5, 'empty');
-INSERT INTO products (id, valid_at) VALUES (5, 'empty');
-```
-
-Note:
-
-- Here's the problem.
-- Temporal PKs allow duplicates, if you've got an empty range.
-    - An empty range never overlaps anything, even another empty range.
-    - So if you add more than one, the constraint allows it.
-- Now you have literal duplicates.
-  - That's confusing.
-  - It messes up our functional dependency checking for GROUP BY.
-    - You know what I mean? If you group by the primary key, you don't need to wrap other columns in an aggregate function.
-    - But if there are duplicates, you randomly get one row or another.
-  - Also our planner takes advantage of primary keys' uniqueness guarantee to optimize some things,
-    and what happens if things aren't really unique?
-- We shouldn't be allowing empty ranges anyway.
-  - PERIODS forbid empty time spans, but we should do it even if you just use ranges.
-  - If there is a `WITHOUT OVERLAPS` constraint, the range column should forbid empties.
-  - I tried implementing something with CHECK constraints,
-    but it was kind of nasty, and it was right before the feature freeze.
-    People were understandably nervous about it, and I didn't really like it either.
-    So the temporal work got reverted.
-  - At pgconf.dev last month I talked with a lot of people about fixing this.
-    - I think there was a consensus about doing this in the executor,
-      without a cataloged CHECK constraint.
-    - So I'm moving forward with that, and hopefully we'll have all this in 18!
 
 
 
