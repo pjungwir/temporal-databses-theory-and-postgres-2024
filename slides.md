@@ -501,7 +501,7 @@ CHECK (
       AND    coalesce(lower(p.valid_at), '-infinity')
                <= coalesce(lower(v.valid_at), '-infinity')
       AND    coalesce(lower(v.valid_at), '-infinity')
-               <= coalesce(upper(p.valid_at), 'infinity'))
+               <  coalesce(upper(p.valid_at), 'infinity'))
     -- ...
 ```
 
@@ -521,7 +521,7 @@ Note:
       FROM   products AS p
       WHERE  v.product_id = p.id
       AND    coalesce(lower(p.valid_at), '-infinity')
-               < coalesce(upper(v.valid_at), 'infinity')
+               <  coalesce(upper(v.valid_at), 'infinity')
       AND    coalesce(upper(v.valid_at), 'infinity')
                <= coalesce(upper(p.valid_at), 'infinity'))
     -- ...
