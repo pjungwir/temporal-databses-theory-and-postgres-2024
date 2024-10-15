@@ -13,7 +13,6 @@ Note:
 - used Postgres since ~2010.
 
 - I've been interested in temporal databases for more than ten years.
-- I've read all the books in English and a lot of the papers.
 - Almost every project I work on I wish I had easy temporal database support.
 - Now that SQL:2011 has standardized some of the functionality,
   more and more vendors are supporting it,
@@ -29,7 +28,7 @@ Note:
 ## Lost Information
 
 <!-- .slide: style="font-size: 80%" -->
-- finance: market data <!-- .element: class="fragment" -->
+- finance: accounting, market data, etc. <!-- .element: class="fragment" -->
 - questionnaires: changing questions, options <!-- .element: class="fragment" -->
 - e-commerce: product price, other attributes <!-- .element: class="fragment" -->
 - real estate: house renovations <!-- .element: class="fragment" -->
@@ -39,14 +38,13 @@ Note:
 
 - The problem temporal databases solve is lost information.
   Whenever you UPDATE or DELETE, you lose what was there before.
-- I've consulted with dozens of companies over the years,
-  but I don't think a single one could re-generate a year-old report
+- I don't think any company I've worked with
+  could re-generate a year-old report
   and get the same answers as before.
   - If you're talking about financial documents, that seems like a problem.
   - Finance seems to be a big one.
     - Hettie Dombrovskaya's has a Postgres extension originally built for this purpose.
     - XTDB (which is not Postgres) is built by finance people.
-    - Lots of other examples.
   - One company built surveys to measure the effectiveness of social services.
     These were mostly multiple-choice questions, like "What is your ethnicity?"
 
@@ -112,9 +110,8 @@ later: <!-- .element: class="fragment" data-fragment-index="1" -->
 
 Note:
 
-- Slowly-changing dimensions are proof that even OLAP databases need temporal features.
-- Tom Johnston has a lot to say about this in his blue temporal book.
-  - "Real talk, what do you mean slow?"
+- Tom Johnston in one of his temporal data books says,
+  - "What do you mean slow?"
 
 - Basically none of Kimball's suggestions are very good:
   - In his original book he gave us solutions he called Types I, II, III.
@@ -130,17 +127,21 @@ Note:
 
 Note:
 
-- I blame Aristotle.
+- It all goes back to Aristotle, right?
+- (You know, pgconf.eu is in Athens next week!)
 - Everyone knows that a row in your table is a true proposition, as if from Aristotelian logic.
+- Here is Codd's paper talking about Sets and Relations.
+    - There is a pretty clear lineage from Aristotle to here.
+    - A relation is all the true statements made by your table.
 - But true always? At this moment? When it was added? It's loose.
 
-- Actually I finally started reading Aristotle, and there is a lot in there about time!
-  - Take his Περὶ Ἑρμινεῖας . . . okay maybe later.
-- So maybe it's Codd's fault.
+- Actually Aristotle had a lot to say about time,
+  but math isn't used to talking about changing things,
 
-- At any rate, in practical relational databases, things are changing all the time.
+- As another famous DBA from Greece once wrote, "πάντα ῥεῖ."
+
+- In our databases, things are changing all the time.
 - We don't model being, but becoming.
-- As another famous DBA once wrote, "πάντα ῥεῖ."
 
 
 
@@ -150,10 +151,11 @@ Note:
 
 Note:
 
+- So how do we solve this problem?
 - Fortunately we've got 30+ years of research, we should use it!
 - This is the first book about temporal databases, by Richard Snodgrass.
-  - Well I recently discovered collection of academic papers he edited that's even earlier. I haven't read that one yet.
-- Published in 1999, though my copy says copyright 2000.
+  - Actually there is an earlier book, a collection of academic papers he edited. But this one was written for working programmers.
+- As you can guess from the title, it's from the end of the 90's.
 - It shows how to do everything.
   - valid-time, system-time, bitemporal.
   - snapshot query vs sequenced vs non-sequenced
@@ -181,6 +183,7 @@ Note:
   - We use intervals to abbreviate that as an optimization, but the ideal model often helps answer questions about how they should function.
   - What Date called intervals inspired Postgres range types.
 - This is probably my favorite of all the temporal books.
+- They are very critical of the standard, as we'll see.
 
 
 
@@ -191,9 +194,9 @@ Note:
 
 - Johnston has two books, one co-authored by Randall Weiss.
 - The blue one is way more interesting.
-- They have some extensions to MS SQL Server to do temporal stuff for you.
-- He also doesn't quite like the standard and deviates from it in some ways.
 - I mentioned Johnston earlier regarding slowing-changing dimensions.
+- Johnston and Weiss have developed some extensions to MS SQL to do temporal stuff for you.
+- They also don't quite like the standard and deviate from it in some ways.
 
 
 
@@ -211,7 +214,7 @@ TimescaleDB          | `periods`, `pg_bitemporal`
 
 Note:
 
-- To start with, a temporal database is not the same as a time-series database.
+- Before we get too far, a temporal database is not the same as a time-series database.
 - Nowadays time-series is all the rage, with web analytics, advertising, IoT sensor data, APM metrics.
 - Temporal is something else.
 - In time-series every record has a single time stamp; in temporal every record has two: start & end.
@@ -219,18 +222,14 @@ Note:
 - Challenges:
   - time-series: scale (but the structure is simpler)
   - temporal: moderate scale, but lots of complexity. Correctness is a challenge.
-- Tools in Postgres:
-  - timeseries: partitioning
-  - temporal: ranges, exclusion constraints: very solid foundation, but no higher-level concepts yet
-- Products in Postgres:
-  - timeseries: Citus, TimescaleDB
-  - temporal:
-    - Teradata has had support for a long time
-    - `temporal_tables` extension gives you one dimension (db history) but not the other (thing history).
-    - Vik Fearing has an extension that gives application-time support. It's called just `periods`, so it's hard to search for.
-    - Hettie Dombrovskaya has an extension on github too.
-      - She's been working with temporal data for years and has lots of talks on it.
-      - Turns out her husband, Boris Novikov, does temporal work too.
+- Actually Hettie pointed out to me the other day that often in a time-series database, you often want to make queries as if you had a temporal database.
+  - Two timestamps make it a lot easier to say, "What is true now?" or "What was true at time t?"
+- If you want to do temporal in Postgres, there are some tools to help you:
+  - Teradata has had support for a long time
+  - Hettie Dombrovskaya has an extension on github for bitemporal tables, which is used in production.
+    - She's been working with temporal data for years and has lots of talks on it. Actually I'm pretty sure they're better than this one.
+    - Boris Novikov does temporal work also, and has published some articles about it.
+  - Then there's another Postgres extension by Vik Fearing that tries to stick very close to the standard. It's called just `periods`, and Google doesn't seem do a good job surfacing it.
 
 
 
@@ -399,8 +398,8 @@ Note:
 
 - But as long as the ranges don't overlap, the PK isn't unique.
 - Uniqueness is a pretty foundational idea; non-unique PKs is crazy!
-- No unique index will give us what we want.
-  - I won't work that out, but you can try later if you want.
+- No unique index will give us entity integrity.
+  - Just because the endpoints are unique doesn't mean the intervals don't overlap---just like product 3 here.
 
 
 
@@ -604,6 +603,7 @@ non-sequenced | time is just another column | returns ??? |
 Note:
 
 - So we have these tables, and we want to query them....
+- Snodgrass gave us three categories of temporal queries.
 - Snapshot queries give you just a regular table: the timestamps are gone.
   - "What was true at time t?"
   - This is especially good for system-time, but it's useful for valid-time too.
@@ -717,6 +717,8 @@ Note:
 
 - Here's the new syntax.
 - We use `FOR PORTION OF` to target just a range of time.
+    - `valid_at` is the range column,
+    - and we give the start and end time where we want the change applied.
 
 (slide)
 
@@ -773,6 +775,8 @@ Note:
 (slide)
 
 - We erase the record, then INSERT any leftovers as needed.
+- Btw for all these leftovers, we even fire insert triggers.
+    - Not just row triggers, but statement triggers too.
 
 
 
@@ -815,6 +819,8 @@ Note:
 Note:
 
 - Or without coalesce, this is probably what we'd get.
+- I'd be happy for either one.
+- I'm not sure what syntax would be good here, but I want to start working on it once the SQL:2011 stuff is all squared away.
 
 
 
@@ -872,6 +878,8 @@ Note:
 Note:
 
 - Right there!
+- Then at the bottom we're declaring our temporal primary key using `WITHOUT OVERLAPS`,
+  using that range column.
 
 
 
@@ -905,13 +913,15 @@ Note:
   - At IBM it's always business time!
 - PERIODS have been pretty severely criticized for breaking the relational model.
   - A PERIOD isn't a column.
+    - It doesn't have a type.
     - You can't SELECT it,
       you can't aggregate it,
       you can't pass it to a function,
       you can't return it from a function,
       you can't put it in a VIEW.
-    - You have a few special-case predicates for your WHERE clause,
-      which no RDBMS actually supported last I checked.
+    - You can't even use it in a WHERE, except for a few special-case predicates with their own keywords.
+      Last I checked, no RDBMS actually supported those.
+      - You can imagine how annoying it is to implement this weird identifier thing.
 
 - In my patches, everything is built on top of ranges,
   and the syntax allows you to give a range wherever a PERIOD is allowed.
@@ -1117,13 +1127,8 @@ Note:
   - b is not in scope in the outer query.
   - The result range you want has no name.
 - With Böhlen/Dignös/Gamper, there is new sytax, so you can get it.
-- But I was talking with Hettie and her husband Boris about this,
-  and he had some performance concerns.
-    - If you have to run `ALIGN` on the whole table, before applying join predicates, it's going to be slow.
-    - He'd worked out some ways to avoid that, but hadn't put it into SQL yet.
-    - Ideally you'd just teach the Postgres semijoin executor node to do a temporal thing.
-      The planner would feed it in aggregated ranges, and it would emit a range intersected with that.
-    - But in *SQL*, how does the user access that intersected range? What is its name?
+- But what if you want it now? Is there a way to do it in SQL?
+- I was talking with Hettie and Boris about this a few months ago, and we came up with some ways to do it.
 
 
 
@@ -1143,7 +1148,7 @@ ON a.id = j.id AND a.valid_at && j.valid_at;</code></pre>
 
 Note:
 
-- Here is some SQL I wrote to implement Boris's approach.
+- Here is the SQL.
   - This makes the new range accessable as `j.valid`.
   - You have to aggregate all the matching ranges on the righthand table first, (slide)
 
@@ -1301,7 +1306,7 @@ Note:
           CASE WHEN j.valid_at IS NULL
                THEN multirange(a.valid_at)
                ELSE multirange(a.valid_at) - j.valid_at END
-         ) AS valid_at
+        ) AS valid_at
 FROM    a 
 LEFT JOIN (
   SELECT  b.id, range_agg(b.valid_at) AS valid_at
@@ -1315,6 +1320,7 @@ Note:
 
 - There is some extra stuff to avoid empty ranges.
 - These are both on github and linked in my references at the end.
+- There is SQL for temporal outer joins there too.
 
 
 
@@ -1324,7 +1330,9 @@ TODO
 
 Note:
 
-- Boris has done some work he shared with me on this. I don't think it's published yet.
+- Boris has done some work he shared with me on this.
+- It was only published recently.
+- I'd like to add it to the github repo, but I haven't had a change yet.
 
 
 
@@ -1334,7 +1342,8 @@ TODO
 
 Note:
 
-- We need support here too.
+- We need to support these too.
+- These feel like they should be pretty easy to me.
 
 
 
@@ -1375,6 +1384,7 @@ Note:
 - http://citeseerx.ist.psu.edu/viewdoc/download;jsessionid=F78723B857463955C76E540DCAB8FDF5?doi=10.1.1.116.7598&rep=rep1&type=pdf
 - https://files.ifi.uzh.ch/boehlen/Papers/modf174-dignoes.pdf
 - http://www.zora.uzh.ch/id/eprint/130374/1/Extending_the_kernel.pdf
+- https://www.red-gate.com/simple-talk/databases/postgresql/making-temporal-databases-work-part-2-computing-aggregates-across-temporal-versions/
 - https://github.com/pjungwir/temporal_ops
 
 #### SQL:2011
