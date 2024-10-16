@@ -2,10 +2,11 @@
 
 These are the slides and my notes for a talk about temporal databases given at pdxpug 20 June 2024 and Chicago 15 October 2024.
 It follows a talk I gave there and at PGCon back in 2019, but with lots of updates.
-It is built on [reveal.js](https://github.com/hakimel/reveal.js/).
+[The slides are online](https://illuminatedcomputing.com/talks/temporal-data-theory-and-postgres/) (press `s` to see speaker notes).
+You can also read [all the slides as a PDF](slides.pdf),
 
-You also can get [all the slides as a PDF](slides.pdf),
-or [read the slides' Markdown with speaker notes](slides.md).
+It is built on [reveal.js](https://github.com/hakimel/reveal.js/),
+from [a big markdown file](slides.md).
 
 ## Development
 
