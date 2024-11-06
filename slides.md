@@ -2,25 +2,18 @@
 ## Theory and Postgres 2024
 
 Paul A. Jungwirth<br/>
-15 October 2024<br/>
-PostgreSQL Chicago
+8 November 2024<br/>
+SeaGL
 
 Note:
 
-- Thanks for coming!
-- I'm Paul Jungwirth....
-- independent consultant/programmer
-- used Postgres since ~2010.
-
-- I've been interested in temporal databases for more than ten years.
-- Almost every project I work on I wish I had easy temporal database support.
-- Now that SQL:2011 has standardized some of the functionality,
-  more and more vendors are supporting it,
-  and I hope Postgres will too!
-  I've been working on "application time" myself, but there is also "system time".
-- I want to give an overview of temporal concepts and features,
-  how they appear in SQL:2011, and how we're supporting them in Postgres.
-- Then I want to talk about some ideas for the future.
+- Thanks for coming, and thank you for the opportunity to speak here!
+- I'm Paul Jungwirth, an independent consultant/programmer in Portland
+- I do some Postgres hacking in my spare time, mostly to work on temporal databases.
+- Postgres is one of the two major open source relational database management systems.
+- I want to share what temporal databases are,
+  what the SQL:2011 standard says about them,
+  and how we are supporting them in Postgres.
 
 
 
