@@ -2,8 +2,8 @@
 ## Theory and Postgres 2024
 
 Paul A. Jungwirth<br/>
-8 November 2024<br/>
-SeaGL
+15 October 2024<br/>
+PostgreSQL Chicago
 
 Note:
 
