@@ -5,6 +5,8 @@ It follows a talk I gave there and at PGCon back in 2019, but with lots of updat
 [The slides are online](https://illuminatedcomputing.com/talks/temporal-data-theory-and-postgres/) (press `s` to see speaker notes).
 You can also read [all the slides as a PDF](slides.pdf),
 
+You can also watch a [recording of the Chicago talk](https://illuminatedcomputing.com/pages/temporal-data-theory-and-postgres/).
+
 It is built on [reveal.js](https://github.com/hakimel/reveal.js/),
 from [a big markdown file](slides.md).
 
