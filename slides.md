@@ -152,7 +152,6 @@ Note:
 - It shows how to do everything.
   - valid-time, system-time, bitemporal.
   - snapshot query vs sequenced vs non-sequenced
-  - inner join vs outer join
 
   - It gives SQL for everything.
     - If you are building a temporal database in Informix or UniSQL, he's got you covered.
